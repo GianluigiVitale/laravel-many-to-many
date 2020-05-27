@@ -3,6 +3,12 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\User;
+use App\Category;
+use App\InfoUser;
+use App\Page;
+use App\Tag;
+use App\Photo;
 
 class HomeController extends Controller
 {
