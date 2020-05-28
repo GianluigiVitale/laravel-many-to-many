@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 use App\User;
 use App\Page;
@@ -23,7 +24,9 @@ class PageController extends Controller
      */
     public function index()
     {
-        //
+        $pages = Page::all();
+
+        return view('admin.pages.index', compact('pages'));
     }
 
     /**
@@ -48,6 +51,8 @@ class PageController extends Controller
      */
     public function store(Request $request)
     {
+        $data = $request->all();
+
         $validator = Validator::make($request->all(), [
             'title' => 'required|max:200',
             'body' => 'required',
@@ -63,8 +68,19 @@ class PageController extends Controller
                 ->withErrors($validator)
                 ->withInput();
         }
-        
-        dd('ok');
+
+        $page = new Page;
+        $data['slug'] = Str::slug($data['title'] , '-') . rand(1,100);
+        $data['user_id'] = Auth::id();
+        $page->fill($data);
+        $saved = $page->save();
+
+        if (!$saved) {
+            abort('404');
+        }
+
+        $page->tags->attach($data['tags']);
+        dd($page->tags);
     }
 
     /**
