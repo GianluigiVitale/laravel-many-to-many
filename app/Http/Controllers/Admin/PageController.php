@@ -38,7 +38,7 @@ class PageController extends Controller
     {
         $categories = Category::all();
         $tags = Tag::all();
-        $photos = Tag::all();
+        $photos = Photo::all();
 
         return view('admin.pages.create', compact('categories', 'tags', 'photos'));
     }
@@ -79,8 +79,10 @@ class PageController extends Controller
             abort('404');
         }
 
-        $page->tags->attach($data['tags']);
-        dd($page->tags);
+        $page->tags()->attach($data['tags']);
+        $page->photos()->attach($data['photos']);
+
+        return redirect()->route('admin.pages.show', $page->id);
     }
 
     /**
@@ -91,7 +93,9 @@ class PageController extends Controller
      */
     public function show($id)
     {
-        //
+        $page = Page::findOrFail($id);
+
+        return view('admin.pages.show', compact('page'));
     }
 
     /**
@@ -102,7 +106,12 @@ class PageController extends Controller
      */
     public function edit($id)
     {
-        //
+        $page = Page::findOrFail($id);
+        $categories = Category::all();
+        $tags = Tag::all();
+        $photos = Photo::all();
+
+        return view('admin.pages.edit', compact('page', 'categories', 'tags', 'photos'));
     }
 
     /**
@@ -114,7 +123,43 @@ class PageController extends Controller
      */
     public function update(Request $request, $id)
     {
-        //
+        $data = $request->all();
+        $page = Page::findOrFail($id);
+        $userId = Auth::id();
+        $author = $page->user_id;
+
+        if ($userId != $author) {
+            abort('404');
+        }
+
+        $validator = Validator::make($request->all(), [
+            'title' => 'max:200',
+            'category_id' => 'exists:categories,id',
+            'tags' => 'array',
+            'photos' => 'array',
+            'tags.*' => 'exists:tags,id',
+            'photos.*' => 'exists:photos,id'
+        ]);
+
+        if ($validator->fails() || empty($data['tags']) || empty($data['photos'])) {
+            return redirect()->back()
+                ->withErrors($validator)
+                ->withInput();
+        }
+
+        $data['slug'] = Str::slug($data['title'] , '-') . rand(1,100);
+
+        $page->fill($data);
+        $updated = $page->update();
+
+        if (!$updated) {
+            return redirect()->back();
+        }
+
+        $page->tags()->sync($data['tags']);
+        $page->photos()->sync($data['photos']);
+
+        return redirect()->route('admin.pages.show', $page->id);
     }
 
     /**
@@ -125,6 +170,15 @@ class PageController extends Controller
      */
     public function destroy($id)
     {
-        //
+        $page = Page::findOrFail($id);
+        $page->tags()->detach();
+        $page->photos()->detach();
+        $deleted = $page->delete();
+
+        if (!$deleted) {
+            return redirect()->back();
+        }
+
+        return redirect()->route('admin.pages.index');
     }
 }
